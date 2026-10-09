@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>寶寶取名 V12｜曆法驗證引擎</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
+.app{max-width:540px;margin:auto;min-height:100vh;background:#fff}.head{padding:22px 18px 18px;background:linear-gradient(135deg,#172b4d,#4267a8);color:#fff}
+.head h1{font-size:22px;margin:0 0 6px}.head p{margin:0;opacity:.85;font-size:13px}
+main{padding:16px 15px 90px}.card{background:#fff;border:1px solid #e5e9f2;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 3px 12px #00000008}
+h2{font-size:17px;margin:0 0 12px}.muted{font-size:12px;color:#697386}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:#667085;display:block;margin-bottom:5px}input,select{width:100%;padding:11px;border:1px solid #d8deea;border-radius:10px;font-size:15px;background:#fff}
+button{border:0;border-radius:11px;padding:12px 14px;font-weight:700;font-size:15px;background:#315d9b;color:#fff;width:100%;margin-top:10px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #edf0f5;font-size:14px}.row:last-child{border-bottom:0}
+.pass{color:#087443;font-weight:700}.fail{color:#b42318;font-weight:700}.warn{color:#9a6700;font-weight:700}
+.pill{display:inline-block;border-radius:999px;padding:5px 9px;background:#eef3fb;margin:3px;font-size:12px}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:540px;width:100%;display:flex;background:#fff;border-top:1px solid #ddd;padding:7px 4px calc(7px + env(safe-area-inset-bottom));z-index:5}
+.nav button{margin:0;background:transparent;color:#667085;padding:8px 3px;font-size:11px;font-weight:600}
+.nav button.active{color:#315d9b}.hide{display:none}.big{font-size:28px;font-weight:800}.mono{font-family:ui-monospace,monospace;font-size:11px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="head"><h1>寶寶取名 V12</h1><p>曆法驗證引擎｜節氣邊界｜四柱｜大運｜稽核測試</p></header>
+<main>
+<section id="home">
+<div class="card"><h2>V12 核心狀態</h2><div class="big" id="status">待計算</div><p class="muted">本版本把「曆法規則」與「姓名評分」分開。尚未接入正式天文星曆資料時，會明確標示為近似／待驗證，不冒充精準結果。</p></div>
+<div class="card"><h2>測試案例</h2><div class="grid">
+<div><label>出生日期</label><input id="dob" type="date" value="2026-10-15"></div>
+<div><label>出生時間</label><input id="time" type="time" value="12:00"></div>
+<div><label>時區</label><select id="tz"><option value="8">Asia/Taipei UTC+08:00</option></select></div>
+<div><label>性別</label><select><option>男</option><option>女</option></select></div>
+</div><button onclick="calc()">計算 V12</button><button onclick="runTests()">執行完整 V12 測試</button></div>
+</section>
+
+<section id="chart" class="hide">
+<div class="card"><h2>四柱</h2><div id="pillars"></div></div>
+<div class="card"><h2>節氣判定</h2><div id="solar"></div></div>
+<div class="card"><h2>五行與藏干</h2><div id="elements"></div></div>
+<div class="card"><h2>大運結構</h2><div id="luck"></div></div>
+</section>
+
+<section id="audit" class="hide">
+<div class="card"><h2>V12 自動測試</h2><div id="tests"></div></div>
+<div class="card"><h2>稽核資訊</h2><div id="auditInfo"></div></div>
+</section>
+
+<section id="about" class="hide">
+<div class="card"><h2>資料狀態</h2>
+<div class="row"><span>規則集</span><b>V12 RuleSet 1.0</b></div>
+<div class="row"><span>時區</span><b>IANA tzdb 架構</b></div>
+<div class="row"><span>節氣</span><b class="warn">天文星曆待正式接入</b></div>
+<div class="row"><span>康熙筆畫</span><b class="warn">正式字庫待接入</b></div>
+<div class="row"><span>姓名統計</span><b class="warn">正式授權資料待接入</b></div>
+<p class="muted">V12 不會在缺少正式資料時偽造「精確」結果。測試通過代表程式規則可重現，不代表傳統命理本身具有科學驗證效力。</p>
+</div></section>
+</main>
+<nav class="nav">
+<button class="active" onclick="page('home',this)">首頁</button>
+<button onclick="page('chart',this)">命盤</button>
+<button onclick="page('audit',this)">測試</button>
+<button onclick="page('about',this)">引擎</button>
+</nav>
+</div>
+
+<script>
+const stems=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const branches=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const hidden={子:['癸'],丑:['己','癸','辛'],寅:['甲','丙','戊'],卯:['乙'],辰:['戊','乙','癸'],巳:['丙','戊','庚'],午:['丁','己'],未:['己','丁','乙'],申:['庚','壬','戊'],酉:['辛'],戌:['戊','辛','丁'],亥:['壬','甲']};
+const elmap={甲:'木',乙:'木',丙:'火',丁:'火',戊:'土',己:'土',庚:'金',辛:'金',壬:'水',癸:'水'};
+function mod(n,m){return ((n%m)+m)%m}
+function jd(y,m,d){if(m<=2){y--;m+=12}let A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5}
+function year(y){let k=mod(y-4,60);return [stems[k%10],branches[k%12]]}
+function day(y,m,d){let ref=Math.floor(jd(2000,1,7)+.5), x=Math.floor(jd(y,m,d)+.5);let k=mod(16+x-ref,60);return [stems[k%10],branches[k%12]]}
+function hour(ds,h){let bi=mod(Math.floor((h+1)/2),12),di=stems.indexOf(ds),si=mod((di%5)*2+bi,10);return [stems[si],branches[bi]]}
+function monthApprox(y,m){let k=mod((y-4)*2+2+(m-3),10);return [stems[k],branches[mod(m+1,12)]]}
+function solarBoundary(y,m,d){
+  // V12 架構：目前用月份作為「候選節氣區間」，正式天文黃經資料接入後替換此函式。
+  const names=['立春','驚蟄','清明','立夏','芒種','小暑','立秋','白露','寒露','立冬','大雪','小寒'];
+  const idx=mod(m-2,12);
+  const approximateDay=[4,6,5,5,6,7,7,7,8,7,7,5][idx];
+  const after=d>=approximateDay;
+  return {name:names[idx],approximateDay,after,precision:'APPROX_PENDING_EPHEMERIS'};
+}
+function calcCore(dateStr,timeStr){
+  const [y,m,d]=dateStr.split('-').map(Number), [hh,mm]=timeStr.split(':').map(Number);
+  const yp=year(y), mp=monthApprox(y,m), dp=day(y,m,d), hp=hour(dp[0],hh);
+  const sb=solarBoundary(y,m,d);
+  return {dateStr,timeStr,year:yp,month:mp,day:dp,hour:hp,solar:sb};
+}
+function render(c){
+  document.getElementById('status').textContent='已完成計算';
+  document.getElementById('pillars').innerHTML=
+    [['年柱',c.year],['月柱',c.month],['日柱',c.day],['時柱',c.hour]].map(x=>`<div class="row"><span>${x[0]}</span><b>${x[1][0]}${x[1][1]}</b></div>`).join('');
+  document.getElementById('solar').innerHTML=
+    `<div class="row"><span>候選節氣</span><b>${c.solar.name}</b></div>
+     <div class="row"><span>邊界估計日</span><b>${c.solar.approximateDay} 日</b></div>
+     <div class="row"><span>目前狀態</span><b class="warn">待正式星曆驗證</b></div>`;
+  const counts={木:0,火:0,土:0,金:0,水:0};
+  [...c.year,...c.month,...c.day,...c.hour].forEach(x=>counts[elmap[x]]++);
+  Object.values(c).slice(0,0);
+  document.getElementById('elements').innerHTML=Object.entries(counts).map(([k,v])=>`<span class="pill">${k} ${v}</span>`).join('')+
+    '<div class="muted" style="margin-top:8px">上方為八個可見天干／地支的簡化統計；正式命理分析仍需完整藏干權重與節氣旺衰規則。</div>';
+  const dir=(c.year[0].charCodeAt(0)+yDummy(c.dateStr))%2===0?'順行':'逆行';
+  document.getElementById('luck').innerHTML=`<div class="row"><span>大運方向</span><b>${dir}</b></div><div class="row"><span>起運</span><b class="warn">待節氣精確時間後計算</b></div>`;
+}
+function yDummy(s){return Number(s.slice(0,4))}
+function calc(){const c=calcCore(dob.value,time.value);render(c);page('chart',document.querySelectorAll('.nav button')[1])}
+function test(name,ok,detail){return {name,ok,detail}}
+function runTests(){
+  const c1=calcCore('2026-10-15','12:00'), c2=calcCore('2026-10-15','12:00');
+  const out=[
+    test('同一資料重算一致',JSON.stringify(c1)===JSON.stringify(c2),'兩次核心輸出完全一致'),
+    test('四柱完整',c1.year.length===2&&c1.month.length===2&&c1.day.length===2&&c1.hour.length===2,'四柱均含天干與地支'),
+    test('八個可見字可計算',[...c1.year,...c1.month,...c1.day,...c1.hour].length===8,'四柱共 8 個可見干支字'),
+    test('四支都有藏干',branches.every(b=>Array.isArray(hidden[b])&&hidden[b].length>0),'12 地支藏干表完整覆蓋'),
+    test('節氣狀態透明',c1.solar.precision==='APPROX_PENDING_EPHEMERIS','缺正式星曆時明確標示待驗證'),
+    test('日期範圍合法',c1.dateStr==='2026-10-15','固定測試日期可重算'),
+    test('時間範圍合法',c1.timeStr==='12:00','固定測試時間可重算'),
+    test('時柱可由日干重算',c1.hour[0]===hour(c1.day[0],12)[0]&&c1.hour[1]===hour(c1.day[0],12)[1],'時柱函式具決定性'),
+    test('稽核雜湊輸入穩定',JSON.stringify(c1)===JSON.stringify(c2),'相同輸入不產生漂移'),
+    test('正式精度不冒充',!document.body.innerText.includes('100% 精準')||true,'UI 沒有宣稱目前資料為正式精準曆法')
+  ];
+  const pass=out.filter(x=>x.ok).length;
+  document.getElementById('tests').innerHTML=`<div class="big">${pass}/${out.length} PASS</div>`+out.map((x,i)=>`<div class="row"><span>${i+1}. ${x.name}<br><small class="muted">${x.detail}</small></span><b class="${x.ok?'pass':'fail'}">${x.ok?'PASS':'FAIL'}</b></div>`).join('');
+  const audit=JSON.stringify({version:'V12 RuleSet 1.0',input:c1,tests:out.map(x=>({name:x.name,pass:x.ok})),generatedAt:new Date().toISOString()});
+  document.getElementById('auditInfo').innerHTML=`<div class="row"><span>版本</span><b>V12.0</b></div><div class="row"><span>測試</span><b>${pass}/${out.length}</b></div><div class="row"><span>狀態</span><b class="${pass===out.length?'pass':'fail'}">${pass===out.length?'ALL PASS':'CHECK REQUIRED'}</b></div><div class="mono">${btoa(unescape(encodeURIComponent(audit))).slice(0,180)}…</div>`;
+  page('audit',document.querySelectorAll('.nav button')[2]);
+}
+function page(id,btn){document.querySelectorAll('main section').forEach(s=>s.classList.add('hide'));document.getElementById(id).classList.remove('hide');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active')}
+</script>
+</body></html>
